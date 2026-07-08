@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Float">
+<meta name="theme-color" content="#5b74e8">
+<link rel="apple-touch-icon" href="icon.png">
+<title>Float — jot it, let it go</title>
+<style>
+  :root{
+    --bg:#eef1f8; --card:#ffffff; --ink:#232c43; --muted:#7d879e;
+    --accent:#5b74e8; --accent-soft:#e6ebff; --good:#3ea98d; --warn:#d97759;
+    --line:#e3e7f0; --chip:#f1f3fa;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0e1424; --card:#182038; --ink:#e7ebf8; --muted:#94a0bd;
+      --accent:#7c93ff; --accent-soft:#26304f; --good:#4fc2a3; --warn:#e08a6e;
+      --line:#26304a; --chip:#212b47;
+    }
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding-bottom:calc(78px + env(safe-area-inset-bottom));
+    min-height:100vh;
+  }
+  header{
+    padding:calc(14px + env(safe-area-inset-top)) 20px 4px;
+    display:flex; align-items:baseline; justify-content:space-between;
+  }
+  header h1{font-size:22px; margin:0; letter-spacing:.3px;}
+  header .tag{font-size:12px; color:var(--muted);}
+  main{padding:8px 16px 16px; max-width:560px; margin:0 auto;}
+  .view{display:none;}
+  .view.active{display:block; animation:fadein .25s ease;}
+  @keyframes fadein{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
+
+  .card{
+    background:var(--card); border-radius:18px; padding:16px;
+    margin-bottom:14px; box-shadow:0 1px 4px rgba(20,30,60,.06);
+  }
+  .card h2{font-size:16px; margin:0 0 6px;}
+  .card p{font-size:14px; line-height:1.5; color:var(--muted); margin:6px 0;}
+  .card p strong{color:var(--ink);}
+
+  /* ---------- JOT ---------- */
+  .prompt{font-size:15px; color:var(--muted); margin:6px 2px 12px;}
+  textarea{
+    width:100%; min-height:120px; border:1.5px solid var(--line); border-radius:14px;
+    background:var(--card); color:var(--ink); padding:12px; font-size:16px;
+    font-family:inherit; resize:vertical; outline:none;
+  }
+  textarea:focus{border-color:var(--accent);}
+  .hintbtn{
+    display:inline-block; margin:8px 0 2px; padding:7px 12px; font-size:13px;
+    background:var(--accent-soft); color:var(--accent); border:none; border-radius:20px;
+  }
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 4px;}
+  .chip{
+    padding:8px 14px; border-radius:20px; background:var(--chip); border:1.5px solid transparent;
+    font-size:14px; color:var(--ink);
+  }
+  .chip.sel{border-color:var(--accent); background:var(--accent-soft); color:var(--accent); font-weight:600;}
+  .field-label{font-size:13px; color:var(--muted); margin:14px 2px 6px; display:block;}
+  input[type=range]{width:100%; accent-color:var(--accent);}
+  input[type=text]{
+    width:100%; border:1.5px solid var(--line); border-radius:12px; background:var(--card);
+    color:var(--ink); padding:10px 12px; font-size:16px; font-family:inherit; outline:none;
+  }
+  input[type=text]:focus{border-color:var(--accent);}
+  .bigbtn{
+    display:block; width:100%; margin-top:16px; padding:15px; border:none; border-radius:14px;
+    background:var(--accent); color:#fff; font-size:17px; font-weight:600; font-family:inherit;
+  }
+  .bigbtn:active{opacity:.85;}
+  .ghostbtn{
+    display:block; width:100%; margin-top:10px; padding:13px; border-radius:14px;
+    background:transparent; border:1.5px solid var(--line); color:var(--ink);
+    font-size:15px; font-family:inherit;
+  }
+  .minibtn{
+    padding:9px 14px; border:none; border-radius:12px; background:var(--accent-soft);
+    color:var(--accent); font-size:14px; font-weight:600; font-family:inherit;
+  }
+  .floater{
+    position:fixed; z-index:60; left:10%; right:10%; text-align:center;
+    background:var(--card); border-radius:16px; padding:14px; box-shadow:0 6px 24px rgba(20,30,60,.18);
+    font-size:15px; pointer-events:none; transition:transform 1.5s ease-in, opacity 1.5s ease-in;
+  }
+  .floater.fly{transform:translateY(-55vh) rotate(-5deg) scale(.75); opacity:0;}
+  #postSave{text-align:center; padding:28px 16px;}
+  #postSave .big{font-size:20px; font-weight:700; margin-bottom:10px;}
+  #postSave p{color:var(--muted); font-size:15px; line-height:1.55;}
+
+  /* ---------- TOOLS ---------- */
+  .toolrow{display:flex; align-items:center; gap:12px;}
+  .toolrow .emo{font-size:26px;}
+  .toolrow .grow{flex:1;}
+  details{margin-top:4px;}
+  summary{font-size:15px; font-weight:600; padding:6px 0; cursor:pointer;}
+  details p{font-size:14px;}
+
+  /* ---------- WEEK ---------- */
+  .ranges{display:flex; gap:8px; margin-bottom:12px;}
+  .softnote{font-size:13px; color:var(--muted); margin:2px 2px 12px; line-height:1.5;}
+  .statgrid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .stat{background:var(--card); border-radius:16px; padding:12px 14px;}
+  .stat .n{font-size:22px; font-weight:700;}
+  .stat .l{font-size:12px; color:var(--muted); margin-top:2px;}
+  .stat .d{font-size:11px; color:var(--good); margin-top:2px;}
+  .chart{display:flex; align-items:flex-end; gap:6px; height:110px; padding:14px 4px 4px;}
+  .bar{flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; height:100%; justify-content:flex-end;}
+  .bar .col{width:70%; max-width:34px; background:var(--accent); border-radius:6px 6px 3px 3px; min-height:3px; opacity:.85;}
+  .bar .lbl{font-size:11px; color:var(--muted);}
+  .bar .cnt{font-size:11px; color:var(--muted);}
+  .todrow{display:flex; gap:8px; margin-top:6px;}
+  .tod{flex:1; text-align:center; background:var(--chip); border-radius:12px; padding:8px 4px;}
+  .tod .n{font-weight:700; font-size:16px;}
+  .tod .l{font-size:11px; color:var(--muted);}
+  .daygroup{margin-bottom:8px;}
+  .daygroup summary{font-size:14px;}
+  .entry{border-top:1px solid var(--line); padding:10px 2px;}
+  .entry .meta{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); margin-bottom:4px; flex-wrap:wrap;}
+  .entry .lblchip{background:var(--accent-soft); color:var(--accent); border-radius:10px; padding:2px 8px; font-weight:600;}
+  .entry .txt{font-size:14px; line-height:1.45; white-space:pre-wrap;}
+  .entry .ctx{font-size:12px; color:var(--muted); margin-top:3px; font-style:italic;}
+  .entry .del{margin-left:auto; background:none; border:none; color:var(--muted); font-size:15px; padding:2px 6px;}
+  #summaryBox{
+    width:100%; min-height:180px; font-size:12px; font-family:ui-monospace, Menlo, monospace;
+    border:1.5px solid var(--line); border-radius:12px; background:var(--card); color:var(--ink); padding:10px;
+    margin-top:10px;
+  }
+  .btnrow{display:flex; gap:8px; margin-top:10px;}
+  .btnrow .minibtn{flex:1;}
+
+  /* ---------- MODALS ---------- */
+  .modal{
+    position:fixed; inset:0; z-index:80; display:none; flex-direction:column;
+    align-items:center; justify-content:center; background:var(--bg); padding:24px; text-align:center;
+  }
+  .modal.open{display:flex;}
+  #breathCircle{
+    width:150px; height:150px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, var(--accent-soft), var(--accent));
+    margin:30px 0; transform:scale(.8); transition:transform 4s linear;
+  }
+  .modal .phase{font-size:20px; font-weight:600; min-height:56px;}
+  .modal .sub{font-size:14px; color:var(--muted); min-height:20px;}
+  .modal .stepbig{font-size:22px; font-weight:700; line-height:1.4; margin:26px 0 8px;}
+  .modal .closer{margin-top:34px; width:70%;}
+
+  /* ---------- NAV ---------- */
+  nav{
+    position:fixed; bottom:0; left:0; right:0; z-index:50;
+    display:flex; background:var(--card); border-top:1px solid var(--line);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  nav button{
+    flex:1; background:none; border:none; padding:9px 0 7px; font-family:inherit;
+    color:var(--muted); font-size:11px; display:flex; flex-direction:column; align-items:center; gap:2px;
+  }
+  nav button .ic{font-size:21px;}
+  nav button.on{color:var(--accent); font-weight:700;}
+  .storwarn{
+    background:var(--warn); color:#fff; font-size:13px; border-radius:12px;
+    padding:10px 14px; margin-bottom:12px; display:none;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Float</h1>
+  <span class="tag">catch it · jot it · let it go</span>
+</header>
+
+<main>
+  <div class="storwarn" id="storWarn">⚠️ Storage unavailable — entries won't survive closing the app. Use Copy backup in More.</div>
+
+  <!-- ============ JOT ============ -->
+  <section class="view active" id="view-jot">
+    <div id="jotForm">
+      <p class="prompt">A thought is knocking? Get it out of your head and onto the page.</p>
+      <textarea id="thoughtText" placeholder="Write the thought here, exactly as it sounds…" rows="4"></textarea>
+      <button class="hintbtn" id="prefixBtn">+ start with “I’m noticing the thought that…”</button>
+
+      <span class="field-label">Label it (what kind of thought is this?)</span>
+      <div class="chips" id="labelChips">
+        <button class="chip" data-l="Intrusive">🌀 Intrusive</button>
+        <button class="chip" data-l="Anxious">😰 Anxious</button>
+        <button class="chip" data-l="What-if">🔮 What-if</button>
+        <button class="chip" data-l="Other">💭 Other</button>
+      </div>
+
+      <span class="field-label">How loud is it right now? <strong id="intVal">5</strong>/10</span>
+      <input type="range" id="intensity" min="0" max="10" value="5">
+
+      <span class="field-label">What were you doing? (optional — helps spot triggers)</span>
+      <input type="text" id="context" placeholder="e.g., studying, watching the match, cooking…">
+
+      <button class="bigbtn" id="saveBtn">Let it go ↑</button>
+      <button class="ghostbtn" id="quickBreath">🫁 Feeling a wave? Breathe first</button>
+    </div>
+
+    <div id="postSave" style="display:none">
+      <div class="big" id="affirm">Noticed. Named. Released.</div>
+      <p>It’s on the page now — not in your head. You don’t need to solve it, argue with it, or check on it.<br>Gently pick up what you were doing.</p>
+      <button class="bigbtn" id="backBtn">Back to now</button>
+      <button class="ghostbtn" id="groundBtn">I need grounding →</button>
+    </div>
+  </section>
+
+  <!-- ============ CALM / TOOLS ============ -->
+  <section class="view" id="view-tools">
+    <div class="card" id="toolBlow">
+      <div class="toolrow"><span class="emo">🌬️</span><div class="grow">
+        <h2>Blow it away</h2>
+        <p>Your therapist’s move: breathe in, then a long exhale — send the thought off. Not suppressing, just not feeding it.</p>
+      </div><button class="minibtn" data-breath="blow">Start</button></div>
+    </div>
+
+    <div class="card" id="toolBox">
+      <div class="toolrow"><span class="emo">🔲</span><div class="grow">
+        <h2>Box breathing</h2>
+        <p>In 4 · hold 4 · out 4 · hold 4. Slows your nervous system when anxiety spikes.</p>
+      </div><button class="minibtn" data-breath="box">Start</button></div>
+    </div>
+
+    <div class="card" id="tool54321">
+      <div class="toolrow"><span class="emo">🖐️</span><div class="grow">
+        <h2>5-4-3-2-1 senses</h2>
+        <p>Anchor back to the present through what you can see, touch, hear, smell, taste.</p>
+      </div><button class="minibtn" id="start54321">Start</button></div>
+    </div>
+
+    <div class="card">
+      <h2>🎯 Refocus in 3 steps</h2>
+      <p><strong>1.</strong> Name out loud what you were doing (“I’m in lecture”, “I’m cooking”).<br>
+      <strong>2.</strong> Do the very next small step of that task — write one note, watch the next play, read the next recipe line.<br>
+      <strong>3.</strong> If the thought knocks again: <strong>“I already wrote you down.”</strong> Back to step 2.</p>
+    </div>
+
+    <div class="card">
+      <h2>⏰ Worry window</h2>
+      <p>If a worry keeps demanding attention, don’t debate it now. Tell it: <strong>“Noted — you get 10 minutes at 6pm.”</strong> Jot it here so it’s captured. Most worries feel much smaller when their appointment comes.</p>
+    </div>
+
+    <div class="card">
+      <details>
+        <summary>💡 Why this works (60-second read)</summary>
+        <p><strong>A thought is just a thought.</strong> It’s a mental event — not a fact, not an intention, not a prediction. Everyone gets strange intrusive thoughts; they only get sticky when we fight or analyze them.</p>
+        <p><strong>Writing it once = externalizing.</strong> You take it out of your head, put it on the page, and return to the present. That’s the whole move. No story-building, no rabbit hole.</p>
+        <p><strong>Rumination is not exposure.</strong> Mentally reviewing or arguing with a thought feeds it. Real exposure is doing a feared activity (like your night driving — the more you do it, the easier it gets). If exposure work for thoughts (ERP) interests you, plan it <em>with your therapist</em> — don’t DIY it.</p>
+        <p><strong>Watch for rituals.</strong> If you notice urges to rewrite a thought until it “feels right”, reread entries for reassurance, or check this app repeatedly — that’s useful information, not failure. Mention it at your next session.</p>
+        <p><strong>Body basics.</strong> Exercise is one of the best evidence-backed tools for anxiety, and 5–10 minutes of daily meditation compounds. Your therapist’s recommendations, worth keeping.</p>
+        <p><strong>Missed the first moment?</strong> Noticing you went down the rabbit hole and coming back IS the skill. No pressure, no scorekeeping.</p>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============ WEEK ============ -->
+  <section class="view" id="view-week">
+    <p class="softnote">💙 This page is for your weekly session. No need to reread entries mid-week — jot and move on.</p>
+    <div class="ranges chips">
+      <button class="chip sel" data-r="p7">Past 7 days</button>
+      <button class="chip" data-r="prev7">Previous 7</button>
+      <button class="chip" data-r="all">All time</button>
+    </div>
+
+    <div class="statgrid" id="statGrid"></div>
+
+    <div class="card" id="chartCard">
+      <h2>Thoughts per day</h2>
+      <div class="chart" id="chart"></div>
+    </div>
+
+    <div class="card">
+      <h2>Time of day</h2>
+      <div class="todrow" id="todRow"></div>
+    </div>
+
+    <div class="card">
+      <h2>Therapist summary</h2>
+      <p>One tap builds a designed PDF report of this period — counts, patterns, and every entry — plus a plain-text version to copy.</p>
+      <button class="bigbtn" id="buildSummary" style="margin-top:8px">Build summary</button>
+      <div id="summaryWrap" style="display:none">
+        <div class="btnrow">
+          <button class="minibtn" id="pdfShare">📄 Share PDF</button>
+          <button class="minibtn" id="pdfSave">Save PDF</button>
+        </div>
+        <textarea id="summaryBox" readonly></textarea>
+        <div class="btnrow">
+          <button class="minibtn" id="copySummary">Copy as text</button>
+          <button class="minibtn" id="shareSummary">Share text</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Entries</h2>
+      <div id="entryList"></div>
+    </div>
+  </section>
+
+  <!-- ============ MORE ============ -->
+  <section class="view" id="view-more">
+    <div class="card">
+      <h2>💾 Backup</h2>
+      <p>Everything lives only on this phone. Once a week (before your session is a good rhythm), copy a backup somewhere safe — Notes, email to yourself, anywhere.</p>
+      <div class="btnrow">
+        <button class="minibtn" id="copyBackup">Copy backup</button>
+        <button class="minibtn" id="dlBackup">Download file</button>
+      </div>
+      <p id="storStatus" style="margin-top:10px"></p>
+    </div>
+
+    <div class="card">
+      <h2>📥 Restore</h2>
+      <p>Paste a backup below to restore. Existing entries are kept; duplicates are skipped.</p>
+      <textarea id="importBox" rows="3" placeholder="Paste backup text here…"></textarea>
+      <button class="ghostbtn" id="importBtn">Restore from pasted backup</button>
+    </div>
+
+    <div class="card">
+      <h2>🧭 About Float</h2>
+      <p>Built around your CBT plan: catch the thought, externalize it, label it, don’t feed it, return to the present. A companion tool — not a replacement for therapy or medical care.</p>
+      <p>If you ever feel unsafe or in crisis, reach out right away — your therapist, someone you trust, your local emergency number, or a crisis helpline.</p>
+    </div>
+
+    <div class="card">
+      <h2>⚠️ Danger zone</h2>
+      <button class="ghostbtn" id="eraseBtn" style="color:var(--warn); border-color:var(--warn)">Erase all entries</button>
+    </div>
+  </section>
+</main>
+
+<!-- Breathing modal -->
+<div class="modal" id="breathModal">
+  <h2 id="breathTitle" style="margin:0">Blow it away</h2>
+  <div id="breathCircle"></div>
+  <div class="phase" id="breathPhase">Get comfortable…</div>
+  <div class="sub" id="breathRound"></div>
+  <button class="ghostbtn closer" id="breathStop">I’m done</button>
+</div>
+
+<!-- 5-4-3-2-1 modal -->
+<div class="modal" id="senseModal">
+  <h2 style="margin:0">5-4-3-2-1</h2>
+  <div class="stepbig" id="senseStep"></div>
+  <div class="sub" id="senseSub">Take your time. Name them slowly.</div>
+  <button class="bigbtn closer" id="senseNext" style="width:70%">Next</button>
+  <button class="ghostbtn" id="senseClose" style="width:70%">Close</button>
+</div>
+
+<nav>
+  <button class="on" data-v="jot"><span class="ic">✏️</span>Jot</button>
+  <button data-v="tools"><span class="ic">🫁</span>Calm</button>
+  <button data-v="week"><span class="ic">📊</span>Week</button>
+  <button data-v="more"><span class="ic">⋯</span>More</button>
+</nav>
+
+<script>
+'use strict';
+var $ = function(s){ return document.querySelector(s); };
+var $$ = function(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); };
+
+/* ---------- storage (with in-memory fallback) ---------- */
+var KEY = 'float_entries_v1';
+var mem = {};
+var storageOK = true;
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ storageOK=false; return mem[k]||null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){ storageOK=false; mem[k]=v; } }
+var entries = [];
+try{ entries = JSON.parse(lsGet(KEY) || '[]') || []; }catch(e){ entries = []; }
+function persist(){
+  lsSet(KEY, JSON.stringify(entries));
+  if(!storageOK){ $('#storWarn').style.display='block'; }
+}
+
+/* ---------- helpers ---------- */
+function escapeHtml(t){
+  return String(t).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function pad(n){ return (n<10?'0':'')+n; }
+function dayKey(ts){ var d=new Date(ts); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function fmtDay(ts){ return new Date(ts).toLocaleDateString(undefined,{weekday:'short', month:'short', day:'numeric'}); }
+function fmtDayLong(ts){ return new Date(ts).toLocaleDateString(undefined,{weekday:'long', month:'short', day:'numeric'}); }
+function fmtTime(ts){ return new Date(ts).toLocaleTimeString(undefined,{hour:'numeric', minute:'2-digit'}); }
+function startOfDay(d){ var x=new Date(d); x.setHours(0,0,0,0); return x.getTime(); }
+function copyText(t, btn){
+  var done = function(){ if(btn){ var o=btn.textContent; btn.textContent='Copied ✓'; setTimeout(function(){btn.textContent=o;},1600);} };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(done, function(){ fallbackCopy(t); done(); });
+  } else { fallbackCopy(t); done(); }
+}
+function fallbackCopy(t){
+  var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta);
+  ta.select(); try{ document.execCommand('copy'); }catch(e){} document.body.removeChild(ta);
+}
+
+/* ---------- navigation ---------- */
+function go(v){
+  $$('.view').forEach(function(el){ el.classList.remove('active'); });
+  $('#view-'+v).classList.add('active');
+  $$('nav button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-v')===v); });
+  if(v==='week'){ renderWeek(); }
+  if(v==='more'){ renderStatus(); }
+  window.scrollTo(0,0);
+}
+$$('nav button').forEach(function(b){
+  b.addEventListener('click', function(){ go(b.getAttribute('data-v')); });
+});
+
+/* ---------- jot ---------- */
+var selectedLabel = null;
+$$('#labelChips .chip').forEach(function(c){
+  c.addEventListener('click', function(){
+    var was = c.classList.contains('sel');
+    $$('#labelChips .chip').forEach(function(x){ x.classList.remove('sel'); });
+    if(!was){ c.classList.add('sel'); selectedLabel = c.getAttribute('data-l'); }
+    else { selectedLabel = null; }
+  });
+});
+$('#intensity').addEventListener('input', function(){ $('#intVal').textContent = this.value; });
+$('#prefixBtn').addEventListener('click', function(){
+  var ta = $('#thoughtText');
+  var p = 'I’m noticing the thought that ';
+  if(ta.value.indexOf(p) !== 0){ ta.value = p + ta.value; }
+  ta.focus();
+});
+var AFFIRMS = [
+  'Noticed. Named. Released.',
+  'Good catch. That’s the skill.',
+  'Thought filed. Back to the present.',
+  'It’s outside your head now.',
+  'Caught it early or late — both count.'
+];
+$('#saveBtn').addEventListener('click', function(){
+  var text = $('#thoughtText').value.trim();
+  if(!text){ $('#thoughtText').focus(); return; }
+  var e = {
+    id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
+    ts: Date.now(),
+    text: text,
+    label: selectedLabel || 'Unlabeled',
+    intensity: parseInt($('#intensity').value, 10),
+    ctx: $('#context').value.trim()
+  };
+  entries.push(e);
+  persist();
+
+  // float-away animation
+  var f = document.createElement('div');
+  f.className = 'floater';
+  f.textContent = text.length > 90 ? text.slice(0,90) + '…' : text;
+  var r = $('#thoughtText').getBoundingClientRect();
+  f.style.top = r.top + 'px';
+  document.body.appendChild(f);
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ f.classList.add('fly'); }); });
+  setTimeout(function(){ if(f.parentNode){ f.parentNode.removeChild(f); } }, 1600);
+
+  // reset form, show post-save
+  $('#thoughtText').value=''; $('#context').value='';
+  $('#intensity').value=5; $('#intVal').textContent='5';
+  $$('#labelChips .chip').forEach(function(x){ x.classList.remove('sel'); });
+  selectedLabel = null;
+  $('#affirm').textContent = AFFIRMS[Math.floor(Math.random()*AFFIRMS.length)];
+  $('#jotForm').style.display='none';
+  $('#postSave').style.display='block';
+});
+$('#backBtn').addEventListener('click', function(){
+  $('#postSave').style.display='none';
+  $('#jotForm').style.display='block';
+});
+$('#groundBtn').addEventListener('click', function(){
+  $('#postSave').style.display='none';
+  $('#jotForm').style.display='block';
+  go('tools');
+});
+$('#quickBreath').addEventListener('click', function(){ go('tools'); startBreath('blow'); });
+
+/* ---------- breathing ---------- */
+var PATTERNS = {
+  blow: { title:'Blow it away', phases:[
+    { txt:'Breathe in slowly…', d:4000, s:1.35 },
+    { txt:'Long exhale — blow it away…', d:6000, s:0.75 }
+  ]},
+  box: { title:'Box breathing', phases:[
+    { txt:'Breathe in…', d:4000, s:1.35 },
+    { txt:'Hold…', d:4000, s:1.35 },
+    { txt:'Breathe out…', d:4000, s:0.75 },
+    { txt:'Hold…', d:4000, s:0.75 }
+  ]}
+};
+var breathTimer = null, breathIdx = 0, breathRounds = 0, breathKey = null;
+function startBreath(key){
+  breathKey = key; breathIdx = 0; breathRounds = 0;
+  $('#breathTitle').textContent = PATTERNS[key].title;
+  $('#breathRound').textContent = '';
+  $('#breathPhase').textContent = 'Get comfortable…';
+  var c = $('#breathCircle');
+  c.style.transitionDuration = '1s'; c.style.transform = 'scale(0.8)';
+  $('#breathModal').classList.add('open');
+  breathTimer = setTimeout(runPhase, 1400);
+}
+function runPhase(){
+  var p = PATTERNS[breathKey].phases[breathIdx];
+  $('#breathPhase').textContent = p.txt;
+  var c = $('#breathCircle');
+  c.style.transitionDuration = (p.d/1000) + 's';
+  c.style.transform = 'scale(' + p.s + ')';
+  breathTimer = setTimeout(function(){
+    breathIdx++;
+    if(breathIdx >= PATTERNS[breathKey].phases.length){
+      breathIdx = 0; breathRounds++;
+      $('#breathRound').textContent = breathRounds + (breathRounds===1?' round':' rounds') + ' · stop whenever you feel settled';
+    }
+    runPhase();
+  }, p.d);
+}
+$('#breathStop').addEventListener('click', function(){
+  clearTimeout(breathTimer);
+  $('#breathModal').classList.remove('open');
+});
+$$('[data-breath]').forEach(function(b){
+  b.addEventListener('click', function(){ startBreath(b.getAttribute('data-breath')); });
+});
+
+/* ---------- 5-4-3-2-1 ---------- */
+var SENSES = [
+  { t:'Look around.\nName 5 things you can SEE.', s:'Colors, shapes, small details.' },
+  { t:'Name 4 things you can TOUCH.', s:'Your clothes, the chair, the air on your skin.' },
+  { t:'Name 3 things you can HEAR.', s:'Near sounds, far sounds.' },
+  { t:'Name 2 things you can SMELL.', s:'Or 2 smells you like, if none around.' },
+  { t:'Name 1 thing you can TASTE.', s:'Even just the inside of your mouth.' },
+  { t:'You’re here. 🌱', s:'Now pick up the thread of what you were doing.' }
+];
+var senseIdx = 0;
+function showSense(){
+  $('#senseStep').textContent = SENSES[senseIdx].t;
+  $('#senseSub').textContent = SENSES[senseIdx].s;
+  $('#senseNext').style.display = senseIdx < SENSES.length-1 ? 'block' : 'none';
+}
+$('#start54321').addEventListener('click', function(){
+  senseIdx = 0; showSense(); $('#senseModal').classList.add('open');
+});
+$('#senseNext').addEventListener('click', function(){ senseIdx++; showSense(); });
+$('#senseClose').addEventListener('click', function(){ $('#senseModal').classList.remove('open'); });
+
+/* ---------- week ---------- */
+var currentRange = 'p7';
+$$('.ranges .chip').forEach(function(c){
+  c.addEventListener('click', function(){
+    $$('.ranges .chip').forEach(function(x){ x.classList.remove('sel'); });
+    c.classList.add('sel');
+    currentRange = c.getAttribute('data-r');
+    renderWeek();
+  });
+});
+function rangeBounds(key){
+  var now = Date.now();
+  var todayStart = startOfDay(new Date());
+  var DAY = 86400000;
+  if(key==='p7'){ return { start: todayStart - 6*DAY, end: now }; }
+  if(key==='prev7'){ return { start: todayStart - 13*DAY, end: todayStart - 6*DAY - 1 }; }
+  return { start: 0, end: now };
+}
+function inRange(e, b){ return e.ts >= b.start && e.ts <= b.end; }
+function todBucket(ts){
+  var h = new Date(ts).getHours();
+  if(h>=5 && h<12) return 0;   // morning
+  if(h>=12 && h<17) return 1;  // afternoon
+  if(h>=17 && h<22) return 2;  // evening
+  return 3;                    // night
+}
+var TOD_NAMES = ['Morning','Afternoon','Evening','Night'];
+
+function computeStats(list){
+  var s = { count:list.length, avg:0, topLabel:'—', topLabelN:0, busiestDay:'—', busiestN:0, tod:[0,0,0,0] };
+  if(!list.length) return s;
+  var sum=0, labels={}, days={};
+  list.forEach(function(e){
+    sum += e.intensity;
+    labels[e.label] = (labels[e.label]||0)+1;
+    var dk = dayKey(e.ts);
+    days[dk] = (days[dk]||0)+1;
+    s.tod[todBucket(e.ts)]++;
+  });
+  s.avg = Math.round(sum/list.length*10)/10;
+  Object.keys(labels).forEach(function(l){ if(labels[l]>s.topLabelN){ s.topLabelN=labels[l]; s.topLabel=l; } });
+  var bd=null; Object.keys(days).forEach(function(d){ if(days[d]>s.busiestN){ s.busiestN=days[d]; bd=d; } });
+  if(bd){ s.busiestDay = new Date(bd+'T12:00:00').toLocaleDateString(undefined,{weekday:'long'}); }
+  return s;
+}
+
+function renderWeek(){
+  var b = rangeBounds(currentRange);
+  var list = entries.filter(function(e){ return inRange(e,b); }).sort(function(a,c){ return c.ts-a.ts; });
+  var s = computeStats(list);
+
+  // delta vs previous period (only for past 7 days)
+  var deltaHtml = '';
+  if(currentRange==='p7'){
+    var pb = rangeBounds('prev7');
+    var prevN = entries.filter(function(e){ return inRange(e,pb); }).length;
+    deltaHtml = '<div class="d">prev 7 days: '+prevN+'</div>';
+  }
+
+  $('#statGrid').innerHTML =
+    '<div class="stat"><div class="n">'+s.count+'</div><div class="l">thoughts jotted</div>'+deltaHtml+'</div>'+
+    '<div class="stat"><div class="n">'+(s.count? s.avg : '—')+'</div><div class="l">avg loudness /10</div></div>'+
+    '<div class="stat"><div class="n" style="font-size:16px; padding-top:4px">'+s.busiestDay+'</div><div class="l">busiest day'+(s.busiestN?' ('+s.busiestN+')':'')+'</div></div>'+
+    '<div class="stat"><div class="n" style="font-size:16px; padding-top:4px">'+escapeHtml(s.topLabel)+'</div><div class="l">most common label'+(s.topLabelN?' ('+s.topLabelN+')':'')+'</div></div>';
+
+  // chart (7-day ranges only)
+  if(currentRange==='all'){
+    $('#chartCard').style.display='none';
+  } else {
+    $('#chartCard').style.display='block';
+    var DAY=86400000, buckets=[], max=1;
+    for(var i=0;i<7;i++){
+      var dstart = b.start + i*DAY;
+      var n = list.filter(function(e){ return e.ts>=dstart && e.ts<dstart+DAY; }).length;
+      buckets.push({ n:n, lbl:new Date(dstart).toLocaleDateString(undefined,{weekday:'narrow'}) });
+      if(n>max) max=n;
+    }
+    $('#chart').innerHTML = buckets.map(function(bk){
+      return '<div class="bar"><div class="cnt">'+(bk.n||'')+'</div><div class="col" style="height:'+(bk.n/max*100)+'%"></div><div class="lbl">'+bk.lbl+'</div></div>';
+    }).join('');
+  }
+
+  // time of day
+  $('#todRow').innerHTML = s.tod.map(function(n,i){
+    return '<div class="tod"><div class="n">'+n+'</div><div class="l">'+TOD_NAMES[i]+'</div></div>';
+  }).join('');
+
+  // entries grouped by day
+  if(!list.length){
+    $('#entryList').innerHTML = '<p style="color:var(--muted); font-size:14px">Nothing here yet. When a thought barges in, jot it and let it float.</p>';
+  } else {
+    var groups = {};
+    list.forEach(function(e){ var k=dayKey(e.ts); (groups[k]=groups[k]||[]).push(e); });
+    var keys = Object.keys(groups).sort().reverse();
+    $('#entryList').innerHTML = keys.map(function(k){
+      var g = groups[k];
+      var rows = g.map(function(e){
+        return '<div class="entry"><div class="meta"><span>'+fmtTime(e.ts)+'</span>'+
+          '<span class="lblchip">'+escapeHtml(e.label)+'</span><span>'+e.intensity+'/10</span>'+
+          '<button class="del" data-id="'+e.id+'" aria-label="delete">✕</button></div>'+
+          '<div class="txt">'+escapeHtml(e.text)+'</div>'+
+          (e.ctx? '<div class="ctx">while: '+escapeHtml(e.ctx)+'</div>' : '')+'</div>';
+      }).join('');
+      return '<details class="daygroup"><summary>'+fmtDay(g[0].ts)+' · '+g.length+(g.length===1?' thought':' thoughts')+'</summary>'+rows+'</details>';
+    }).join('');
+    $$('#entryList .del').forEach(function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.preventDefault();
+        if(confirm('Delete this entry?')){
+          var id = btn.getAttribute('data-id');
+          entries = entries.filter(function(e){ return e.id!==id; });
+          persist(); renderWeek();
+        }
+      });
+    });
+  }
+  $('#summaryWrap').style.display='none';
+}
+
+/* ---------- therapist summary ---------- */
+function buildSummaryText(){
+  var b = rangeBounds(currentRange);
+  var list = entries.filter(function(e){ return inRange(e,b); }).sort(function(a,c){ return a.ts-c.ts; });
+  var s = computeStats(list);
+  var lines = [];
+  lines.push('FLOAT — THOUGHT LOG SUMMARY');
+  var startLbl = currentRange==='all' && list.length ? fmtDay(list[0].ts) : fmtDay(b.start);
+  lines.push('Period: ' + startLbl + ' – ' + fmtDay(b.end));
+  lines.push('');
+  lines.push('Thoughts jotted: ' + s.count);
+  if(currentRange==='p7'){
+    var pb = rangeBounds('prev7');
+    lines.push('Previous 7 days: ' + entries.filter(function(e){ return inRange(e,pb); }).length);
+  }
+  if(s.count){
+    lines.push('Average loudness (0–10): ' + s.avg);
+    lines.push('Most common label: ' + s.topLabel + ' (' + s.topLabelN + ' of ' + s.count + ')');
+    lines.push('Busiest day: ' + s.busiestDay + ' (' + s.busiestN + ')');
+    lines.push('Time of day: morning ' + s.tod[0] + ' · afternoon ' + s.tod[1] + ' · evening ' + s.tod[2] + ' · night ' + s.tod[3]);
+  }
+  lines.push('');
+  lines.push('ENTRIES');
+  var lastDay = '';
+  list.forEach(function(e){
+    var dk = dayKey(e.ts);
+    if(dk !== lastDay){ lines.push(''); lines.push('— ' + fmtDayLong(e.ts) + ' —'); lastDay = dk; }
+    lines.push(fmtTime(e.ts) + ' · ' + e.label + ' · ' + e.intensity + '/10');
+    lines.push('“' + e.text + '”');
+    if(e.ctx){ lines.push('(while: ' + e.ctx + ')'); }
+  });
+  if(!list.length){ lines.push('(no entries in this period)'); }
+  return lines.join('\n');
+}
+$('#buildSummary').addEventListener('click', function(){
+  $('#summaryBox').value = buildSummaryText();
+  $('#summaryWrap').style.display='block';
+});
+$('#copySummary').addEventListener('click', function(){ copyText($('#summaryBox').value, this); });
+$('#shareSummary').addEventListener('click', function(){
+  var t = $('#summaryBox').value;
+  if(navigator.share){ navigator.share({ text:t }).catch(function(){}); }
+  else { copyText(t, this); }
+});
+
+/* ---------- PDF report (no libraries, fully offline) ---------- */
+var PW=595.28, PH=841.89, PM=48;
+var C_ACC=[0.357,0.455,0.910], C_INK2=[0.137,0.173,0.263], C_MUT=[0.47,0.51,0.61],
+    C_SOFT2=[0.925,0.937,0.972], C_WHT=[1,1,1], C_LN=[0.86,0.88,0.93];
+function n2(n){ return (Math.round(n*100)/100).toString(); }
+function encWin(s){
+  var MAP={'’':146,'‘':145,'“':147,'”':148,'–':150,'—':151,'…':133,'•':149,'·':183};
+  var out='';
+  for(var i=0;i<s.length;i++){
+    var ch=s[i], c=s.charCodeAt(i);
+    if(c===10||c===13||c===9){ out+=' '; }
+    else if(c>=32&&c<127){ out+=ch; }
+    else if(MAP[ch]){ out+=String.fromCharCode(MAP[ch]); }
+    else if(c>=128&&c<=255){ out+=ch; }
+    /* other unicode (emoji etc.) is skipped */
+  }
+  return out;
+}
+function pdfStr(s){ return encWin(s).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)'); }
+function estW(s,size){
+  var w=0;
+  for(var i=0;i<s.length;i++){
+    var ch=s[i];
+    if(/[iljI.,;:'!|\[\]()tfr]/.test(ch)) w+=0.31;
+    else if(/[mwMW@]/.test(ch)) w+=0.90;
+    else if(/[A-HJ-VXYZ]/.test(ch)) w+=0.72;
+    else if(ch===' ') w+=0.28;
+    else w+=0.54;
+  }
+  return w*size;
+}
+function wrapText(s,size,maxW){
+  var words=encWin(s).split(/ +/), lines=[], cur='';
+  words.forEach(function(w){
+    var t=cur? cur+' '+w : w;
+    if(estW(t,size)<=maxW){ cur=t; return; }
+    if(cur) lines.push(cur);
+    while(estW(w,size)>maxW){
+      var k=Math.max(1,Math.floor(w.length*maxW/estW(w,size)));
+      lines.push(w.slice(0,k)); w=w.slice(k);
+    }
+    cur=w;
+  });
+  if(cur) lines.push(cur);
+  return lines.length? lines : [''];
+}
+function opRect(x,y,w,h,c){ return c.join(' ')+' rg '+n2(x)+' '+n2(y)+' '+n2(w)+' '+n2(h)+' re f\n'; }
+function opLine(x1,y1,x2,y2,c,wd){ return c.join(' ')+' RG '+n2(wd)+' w '+n2(x1)+' '+n2(y1)+' m '+n2(x2)+' '+n2(y2)+' l S\n'; }
+function opText(x,y,s,f,size,c){ return 'BT '+c.join(' ')+' rg /'+f+' '+n2(size)+' Tf '+n2(x)+' '+n2(y)+' Td ('+pdfStr(s)+') Tj ET\n'; }
+
+function buildPdfPages(){
+  var b=rangeBounds(currentRange);
+  var list=entries.filter(function(e){ return inRange(e,b); }).sort(function(a,c){ return a.ts-c.ts; });
+  var s=computeStats(list);
+  var pages=[], ops='', y=0;
+  function newPage(){
+    pages.push(ops); ops='';
+    y=PH-PM-4;
+    ops+=opText(PM,y,'Float — thought log (continued)','F1',9,C_MUT);
+    y-=26;
+  }
+  /* header band */
+  ops+=opRect(0,PH-130,PW,130,C_ACC);
+  ops+=opText(PM,PH-46,'FLOAT','F2',12,[0.82,0.86,1]);
+  ops+=opText(PM,PH-74,'Weekly Thought Log','F2',24,C_WHT);
+  var startLbl=(currentRange==='all'&&list.length)? fmtDay(list[0].ts) : fmtDay(b.start);
+  ops+=opText(PM,PH-94,startLbl+'  –  '+fmtDay(b.end),'F1',11,[0.9,0.92,1]);
+  ops+=opText(PM,PH-112,'Prepared for therapy session · generated '+fmtDay(Date.now()),'F1',9,[0.82,0.86,1]);
+  y=PH-130-30;
+  /* stat boxes */
+  var bw=(PW-2*PM-30)/4;
+  var boxes=[
+    [String(s.count),'thoughts jotted'],
+    [s.count? String(s.avg) : '—','avg loudness /10'],
+    [s.busiestDay,'busiest day'+(s.busiestN? ' ('+s.busiestN+')' : '')],
+    [s.topLabel,'top label'+(s.topLabelN? ' ('+s.topLabelN+')' : '')]
+  ];
+  boxes.forEach(function(st,i){
+    var x=PM+i*(bw+10);
+    ops+=opRect(x,y-56,bw,56,C_SOFT2);
+    var big=st[0].length<=4;
+    ops+=opText(x+10,y-26,st[0],'F2',big?17:11,C_ACC);
+    ops+=opText(x+10,y-44,st[1],'F1',7.5,C_MUT);
+  });
+  y-=56+30;
+  /* bar chart (7-day ranges) */
+  if(currentRange!=='all'){
+    ops+=opText(PM,y,'Thoughts per day','F2',12,C_INK2); y-=16;
+    var DAY=86400000, max=1, buckets=[], i, dstart, cnum;
+    for(i=0;i<7;i++){
+      dstart=b.start+i*DAY;
+      cnum=list.filter(function(e){ return e.ts>=dstart && e.ts<dstart+DAY; }).length;
+      buckets.push({ n:cnum, l:new Date(dstart).toLocaleDateString(undefined,{weekday:'short'}) });
+      if(cnum>max) max=cnum;
+    }
+    var ch=72, cb=y-ch-6, cw=40, gap=(PW-2*PM-7*cw)/6;
+    buckets.forEach(function(bk,j){
+      var x=PM+j*(cw+gap), h=bk.n? Math.max(bk.n/max*ch,4) : 0;
+      ops+=opRect(x,cb,cw,ch,[0.955,0.962,0.982]);
+      if(h) ops+=opRect(x,cb,cw,h,C_ACC);
+      if(bk.n) ops+=opText(x+cw/2-estW(String(bk.n),8)/2, cb+h+4, String(bk.n),'F2',8,C_MUT);
+      ops+=opText(x+cw/2-estW(bk.l,8)/2, cb-13, bk.l,'F1',8,C_MUT);
+    });
+    y=cb-32;
+  }
+  /* time of day */
+  ops+=opText(PM,y,'Time of day:   morning '+s.tod[0]+'    ·    afternoon '+s.tod[1]+'    ·    evening '+s.tod[2]+'    ·    night '+s.tod[3],'F1',10,C_MUT);
+  y-=30;
+  /* entries */
+  ops+=opText(PM,y,'Entries','F2',14,C_INK2); y-=8;
+  ops+=opLine(PM,y,PW-PM,y,C_LN,1); y-=20;
+  if(!list.length){ ops+=opText(PM,y,'(no entries in this period)','F1',10,C_MUT); }
+  var lastDay='';
+  list.forEach(function(e){
+    var dk=dayKey(e.ts);
+    if(dk!==lastDay){
+      if(y<PM+96){ newPage(); }
+      ops+=opText(PM,y,fmtDayLong(e.ts),'F2',11,C_ACC);
+      y-=17; lastDay=dk;
+    }
+    var tl=wrapText(e.text,10,PW-2*PM-8);
+    var need=14+tl.length*13+(e.ctx?12:0)+10;
+    if(y-need<PM+26){
+      newPage();
+      ops+=opText(PM,y,fmtDayLong(e.ts)+' (contd.)','F2',11,C_ACC);
+      y-=17;
+    }
+    var tx=PM+4;
+    ops+=opText(tx,y,fmtTime(e.ts),'F2',9,C_INK2);
+    var cx=tx+estW(fmtTime(e.ts),9)+10;
+    var lw=estW(e.label,8)+12;
+    ops+=opRect(cx,y-3,lw,12,C_SOFT2);
+    ops+=opText(cx+6,y,e.label,'F2',8,C_ACC);
+    ops+=opText(cx+lw+10,y,e.intensity+'/10','F1',9,C_MUT);
+    y-=15;
+    tl.forEach(function(ln){ ops+=opText(tx,y,ln,'F1',10,C_INK2); y-=13; });
+    if(e.ctx){ ops+=opText(tx,y,'while: '+e.ctx,'F3',9,C_MUT); y-=12; }
+    y-=10;
+  });
+  pages.push(ops);
+  return pages;
+}
+function buildPdfBytes(){
+  var pages=buildPdfPages(), n=pages.length;
+  pages=pages.map(function(p,i){
+    var pg='Page '+(i+1)+' of '+n;
+    return p
+      + opText(PM,26,'Float · your data stays on your device','F1',8,C_MUT)
+      + opText(PW-PM-estW(pg,8),26,pg,'F1',8,C_MUT);
+  });
+  var objs=[];
+  objs[1]='<< /Type /Catalog /Pages 2 0 R >>';
+  var kids=[], i;
+  for(i=0;i<n;i++){ kids.push((3+i)+' 0 R'); }
+  objs[2]='<< /Type /Pages /Kids ['+kids.join(' ')+'] /Count '+n+' >>';
+  var fB=3+2*n;
+  for(i=0;i<n;i++){
+    objs[3+i]='<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+n2(PW)+' '+n2(PH)+'] /Resources << /Font << /F1 '+fB+' 0 R /F2 '+(fB+1)+' 0 R /F3 '+(fB+2)+' 0 R >> >> /Contents '+(3+n+i)+' 0 R >>';
+    objs[3+n+i]='<< /Length '+pages[i].length+' >>\nstream\n'+pages[i]+'endstream';
+  }
+  ['Helvetica','Helvetica-Bold','Helvetica-Oblique'].forEach(function(f,j){
+    objs[fB+j]='<< /Type /Font /Subtype /Type1 /BaseFont /'+f+' /Encoding /WinAnsiEncoding >>';
+  });
+  var out='%PDF-1.4\n%âãÏÓ\n', offs=[];
+  for(i=1;i<objs.length;i++){ offs[i]=out.length; out+=i+' 0 obj\n'+objs[i]+'\nendobj\n'; }
+  var xref=out.length;
+  out+='xref\n0 '+objs.length+'\n0000000000 65535 f \n';
+  for(i=1;i<objs.length;i++){ out+=('0000000000'+offs[i]).slice(-10)+' 00000 n \n'; }
+  out+='trailer\n<< /Size '+objs.length+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF';
+  var bytes=new Uint8Array(out.length);
+  for(i=0;i<out.length;i++){ bytes[i]=out.charCodeAt(i)&0xff; }
+  return bytes;
+}
+function pdfName(){ return 'float-summary-'+dayKey(Date.now())+'.pdf'; }
+$('#pdfSave').addEventListener('click', function(){
+  var blob=new Blob([buildPdfBytes()],{type:'application/pdf'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=pdfName();
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+});
+$('#pdfShare').addEventListener('click', function(){
+  try{
+    var file=new File([buildPdfBytes()],pdfName(),{type:'application/pdf'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file], title:'Float weekly summary'}).catch(function(){});
+      return;
+    }
+  }catch(e){}
+  $('#pdfSave').click(); /* fallback: save instead */
+});
+
+/* ---------- more / backup ---------- */
+function backupJSON(){
+  return JSON.stringify({ app:'float', version:1, exported:new Date().toISOString(), entries:entries });
+}
+function renderStatus(){
+  $('#storStatus').textContent = entries.length + (entries.length===1?' entry':' entries') + ' stored on this device' + (storageOK ? '.' : ' — ⚠️ storage limited, back up now!');
+}
+$('#copyBackup').addEventListener('click', function(){ copyText(backupJSON(), this); });
+$('#dlBackup').addEventListener('click', function(){
+  var blob = new Blob([backupJSON()], { type:'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'float-backup-' + dayKey(Date.now()) + '.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+});
+$('#importBtn').addEventListener('click', function(){
+  var raw = $('#importBox').value.trim();
+  if(!raw){ return; }
+  try{
+    var data = JSON.parse(raw);
+    var list = Array.isArray(data) ? data : (data.entries || []);
+    var have = {}; entries.forEach(function(e){ have[e.id]=1; });
+    var added = 0;
+    list.forEach(function(e){
+      if(e && e.id && e.ts && typeof e.text==='string' && !have[e.id]){
+        entries.push({ id:String(e.id), ts:+e.ts, text:e.text, label:e.label||'Unlabeled',
+          intensity: (typeof e.intensity==='number'? e.intensity : 5), ctx:e.ctx||'' });
+        have[e.id]=1; added++;
+      }
+    });
+    entries.sort(function(a,c){ return a.ts-c.ts; });
+    persist(); renderStatus();
+    $('#importBox').value='';
+    alert(added + ' entries restored.');
+  }catch(e){ alert('That doesn’t look like a Float backup. Paste the full text and try again.'); }
+});
+$('#eraseBtn').addEventListener('click', function(){
+  if(confirm('Erase ALL entries? This cannot be undone.') && confirm('Really sure? Consider copying a backup first.')){
+    entries = []; persist(); renderStatus();
+  }
+});
+
+/* ---------- init ---------- */
+if(!storageOK){ $('#storWarn').style.display='block'; }
+</script>
+</body>
+</html>
